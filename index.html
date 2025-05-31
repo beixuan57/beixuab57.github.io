@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>嵌入式示波器音乐频谱</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #222;
+      overflow: hidden;
+      width: 736px;
+      height: 455px;
+      position: relative;
+    }
+    #scope-frame {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 736px;
+      height: 455px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    #osc-canvas {
+      position: absolute;
+      left: 65px;
+      top: 48px;
+      width: 410px;
+      height: 320px;
+      background: transparent;
+      pointer-events: none;
+      z-index: 1;
+      border-radius: 10px;
+    }
+    #controls {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <input type="file" id="fileInput" accept="audio/*">
+    <audio id="audio" controls></audio>
+  </div>
+  <canvas id="osc-canvas" width="410" height="320"></canvas>
+  <img id="scope-frame" src="scope_frame.png" alt="示波器外壳">
+  <script>
+    // 你的频谱/示波器波形JS代码，直接画在osc-canvas上即可
+    // 例如：
+    const fileInput = document.getElementById('fileInput');
+    const audio = document.getElementById('audio');
+    const canvas = document.getElementById('osc-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let audioContext, analyser, source, dataArray, animationId;
+
+    fileInput.onchange = function() {
+      const file = this.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      audio.src = url;
+      audio.load();
+      audio.play();
+      setupAudio();
+    };
+
+    function setupAudio() {
+      if (audioContext) {
+        audioContext.close();
+        cancelAnimationFrame(animationId);
+      }
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      source = audioContext.createMediaElementSource(audio);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+      dataArray = new Uint8Array(analyser.fftSize);
+      draw();
+    }
+
+    function draw() {
+      animationId = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 画网格
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = "#00ffe7";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let i = 0; i < canvas.height; i += 32) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 辉光波形
+      for (let glow = 18; glow >= 2; glow -= 4) {
+        ctx.save();
+        ctx.beginPath();
+        let sliceWidth = canvas.width / dataArray.length;
+        let x = 0;
+        for (let i = 0; i < dataArray.length; i += 8) {
+          let v = dataArray[i] / 128.0;
+          let y = v * canvas.height / 2;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          x += sliceWidth * 8;
+        }
+        ctx.shadowColor = "#00ffe7";
+        ctx.shadowBlur = glow;
+        ctx.lineWidth = glow / 2;
+        ctx.strokeStyle = "rgba(0,255,230,0.18)";
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 主线
+      ctx.save();
+      ctx.beginPath();
+      let sliceWidth = canvas.width / dataArray.length;
+      let x = 0;
+      for (let i = 0; i < dataArray.length; i += 8) {
+        let v = dataArray[i] / 128.0;
+        let y = v * canvas.height / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth * 8;
+      }
+      ctx.shadowColor = "#00ffe7";
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#00ffe7";
+      ctx.stroke();
+      ctx.restore();
+    }
+  </script>
+</body>
+</html>
