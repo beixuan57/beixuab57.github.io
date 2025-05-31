@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>嵌入式示波器音乐频谱</title>
+  <title>示波器音乐频谱 - Mazzy Star</title>
   <style>
     body {
       margin: 0;
@@ -40,41 +40,39 @@
       transform: translateX(-50%);
       z-index: 10;
       text-align: center;
+      color: #fff;
+      font-size: 1.1em;
+      background: rgba(0,0,0,0.4);
+      padding: 6px 18px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <div id="controls">
-    <input type="file" id="fileInput" accept="audio/*">
-    <audio id="audio" controls></audio>
+    正在播放：Mazzy Star - Look On Down From The Bridge.mp3
+    <audio id="audio" src="Mazzy Star - Look On Down From The Bridge.mp3" controls autoplay></audio>
   </div>
   <canvas id="osc-canvas" width="410" height="320"></canvas>
   <img id="scope-frame" src="scope_frame.png" alt="示波器外壳">
   <script>
-    // 你的频谱/示波器波形JS代码，直接画在osc-canvas上即可
-    // 例如：
-    const fileInput = document.getElementById('fileInput');
     const audio = document.getElementById('audio');
     const canvas = document.getElementById('osc-canvas');
     const ctx = canvas.getContext('2d');
 
     let audioContext, analyser, source, dataArray, animationId;
 
-    fileInput.onchange = function() {
-      const file = this.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      audio.src = url;
-      audio.load();
+    // 自动播放兼容性处理
+    window.addEventListener('click', function once() {
       audio.play();
-      setupAudio();
+      window.removeEventListener('click', once);
+    });
+
+    audio.onplay = function() {
+      if (!audioContext) setupAudio();
     };
 
     function setupAudio() {
-      if (audioContext) {
-        audioContext.close();
-        cancelAnimationFrame(animationId);
-      }
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
